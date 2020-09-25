@@ -1,17 +1,16 @@
 <?php
 
-namespace Laravel\Airlock\Tests;
+namespace Laravel\Sanctum\Tests;
 
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Laravel\Airlock\Airlock;
-use Laravel\Airlock\AirlockServiceProvider;
-use Laravel\Airlock\Guard;
-use Laravel\Airlock\HasApiTokens;
-use Laravel\Airlock\PersonalAccessToken;
+use Laravel\Sanctum\Guard;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\SanctumServiceProvider;
 use Mockery;
 use Orchestra\Testbench\TestCase;
 use stdClass;
@@ -29,7 +28,7 @@ class GuardTest extends TestCase
         ]);
     }
 
-    public function tearDown() : void
+    public function tearDown(): void
     {
         parent::tearDown();
 
@@ -40,7 +39,7 @@ class GuardTest extends TestCase
     {
         $factory = Mockery::mock(AuthFactory::class);
 
-        $guard = new Guard($factory);
+        $guard = new Guard($factory, null, 'users');
 
         $webGuard = Mockery::mock(stdClass::class);
 
@@ -49,7 +48,6 @@ class GuardTest extends TestCase
                 ->andReturn($webGuard);
 
         $webGuard->shouldReceive('user')->once()->andReturn($fakeUser = new User);
-        $webGuard->shouldReceive('getProvider->getModel')->once()->andReturn(User::class);
 
         $user = $guard->__invoke(Request::create('/', 'GET'));
 
@@ -63,7 +61,7 @@ class GuardTest extends TestCase
 
         $factory = Mockery::mock(AuthFactory::class);
 
-        $guard = new Guard($factory);
+        $guard = new Guard($factory, null, 'users');
 
         $webGuard = Mockery::mock(stdClass::class);
 
@@ -72,7 +70,6 @@ class GuardTest extends TestCase
                 ->andReturn($webGuard);
 
         $webGuard->shouldReceive('user')->once()->andReturn(null);
-        $webGuard->shouldReceive('getProvider->getModel')->andReturn(User::class);
 
         $request = Request::create('/', 'GET');
         $request->headers->set('Authorization', 'Bearer test');
@@ -84,14 +81,12 @@ class GuardTest extends TestCase
 
     public function test_authentication_with_token_fails_if_expired()
     {
-        Airlock::useUserModel(User::class);
-
         $this->loadLaravelMigrations(['--database' => 'testbench']);
         $this->artisan('migrate', ['--database' => 'testbench'])->run();
 
         $factory = Mockery::mock(AuthFactory::class);
 
-        $guard = new Guard($factory, 1);
+        $guard = new Guard($factory, 1, 'users');
 
         $webGuard = Mockery::mock(stdClass::class);
 
@@ -100,7 +95,6 @@ class GuardTest extends TestCase
                 ->andReturn($webGuard);
 
         $webGuard->shouldReceive('user')->once()->andReturn(null);
-        $webGuard->shouldReceive('getProvider->getModel')->andReturn(User::class);
 
         $request = Request::create('/', 'GET');
         $request->headers->set('Authorization', 'Bearer test');
@@ -113,7 +107,8 @@ class GuardTest extends TestCase
         ]);
 
         $token = PersonalAccessToken::forceCreate([
-            'user_id' => $user->id,
+            'tokenable_id' => $user->id,
+            'tokenable_type' => get_class($user),
             'name' => 'Test',
             'token' => hash('sha256', 'test'),
             'created_at' => now()->subMinutes(60),
@@ -126,14 +121,12 @@ class GuardTest extends TestCase
 
     public function test_authentication_is_successful_with_token_if_no_session_present()
     {
-        Airlock::useUserModel(User::class);
-
         $this->loadLaravelMigrations(['--database' => 'testbench']);
         $this->artisan('migrate', ['--database' => 'testbench'])->run();
 
         $factory = Mockery::mock(AuthFactory::class);
 
-        $guard = new Guard($factory);
+        $guard = new Guard($factory, null);
 
         $webGuard = Mockery::mock(stdClass::class);
 
@@ -142,7 +135,6 @@ class GuardTest extends TestCase
                 ->andReturn($webGuard);
 
         $webGuard->shouldReceive('user')->once()->andReturn(null);
-        $webGuard->shouldReceive('getProvider->getModel')->andReturn(User::class);
 
         $request = Request::create('/', 'GET');
         $request->headers->set('Authorization', 'Bearer test');
@@ -155,7 +147,8 @@ class GuardTest extends TestCase
         ]);
 
         $token = PersonalAccessToken::forceCreate([
-            'user_id' => $user->id,
+            'tokenable_id' => $user->id,
+            'tokenable_type' => get_class($user),
             'name' => 'Test',
             'token' => hash('sha256', 'test'),
         ]);
@@ -169,7 +162,7 @@ class GuardTest extends TestCase
 
     protected function getPackageProviders($app)
     {
-        return [AirlockServiceProvider::class];
+        return [SanctumServiceProvider::class];
     }
 }
 

@@ -1,8 +1,9 @@
 <?php
 
-namespace Laravel\Airlock\Http\Middleware;
+namespace Laravel\Sanctum\Http\Middleware;
 
 use Illuminate\Routing\Pipeline;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class EnsureFrontendRequestsAreStateful
@@ -20,14 +21,14 @@ class EnsureFrontendRequestsAreStateful
 
         return (new Pipeline(app()))->send($request)->through(static::fromFrontend($request) ? [
             function ($request, $next) {
-                $request->attributes->set('airlock', true);
+                $request->attributes->set('sanctum', true);
 
                 return $next($request);
             },
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            config('sanctum.middleware.encrypt_cookies', \Illuminate\Cookie\Middleware\EncryptCookies::class),
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            config('sanctum.middleware.verify_csrf_token', \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class),
         ] : [])->then(function ($request) use ($next) {
             return $next($request);
         });
@@ -41,7 +42,6 @@ class EnsureFrontendRequestsAreStateful
     protected function configureSecureCookieSessions()
     {
         config([
-            'session.driver' => 'cookie',
             'session.http_only' => true,
             'session.same_site' => 'lax',
         ]);
@@ -56,12 +56,13 @@ class EnsureFrontendRequestsAreStateful
     public static function fromFrontend($request)
     {
         $referer = Str::replaceFirst('https://', '', $request->headers->get('referer'));
-
         $referer = Str::replaceFirst('http://', '', $referer);
+        $referer = Str::endsWith($referer, '/') ? $referer : "{$referer}/";
 
-        return Str::startsWith(
-            $referer,
-            config('airlock.stateful', [])
-        );
+        $stateful = array_filter(config('sanctum.stateful', []));
+
+        return Str::is(Collection::make($stateful)->map(function ($uri) {
+            return trim($uri).'/*';
+        })->all(), $referer);
     }
 }

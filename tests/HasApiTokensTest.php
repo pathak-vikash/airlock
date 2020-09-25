@@ -1,10 +1,10 @@
 <?php
 
-namespace Laravel\Airlock\Tests;
+namespace Laravel\Sanctum\Tests;
 
-use Laravel\Airlock\HasApiTokens;
-use Laravel\Airlock\PersonalAccessToken;
-use Laravel\Airlock\TransientToken;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\TransientToken;
 use PHPUnit\Framework\TestCase;
 
 class HasApiTokensTest extends TestCase
@@ -15,9 +15,16 @@ class HasApiTokensTest extends TestCase
 
         $newToken = $class->createToken('test', ['foo']);
 
+        [$id, $token] = explode('|', $newToken->plainTextToken);
+
         $this->assertEquals(
             $newToken->accessToken->token,
-            hash('sha256', $newToken->plainTextToken)
+            hash('sha256', $token)
+        );
+
+        $this->assertEquals(
+            $newToken->accessToken->id,
+            $id
         );
     }
 

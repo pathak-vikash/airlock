@@ -1,10 +1,11 @@
 <?php
 
-namespace Laravel\Airlock;
+namespace Laravel\Sanctum;
 
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\Contracts\HasAbilities;
 
-class PersonalAccessToken extends Model
+class PersonalAccessToken extends Model implements HasAbilities
 {
     /**
      * The attributes that should be cast to native types.
@@ -37,11 +38,32 @@ class PersonalAccessToken extends Model
     ];
 
     /**
-     * Get the user that the access token belongs to.
+     * Get the tokenable model that the access token belongs to.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
      */
-    public function user()
+    public function tokenable()
     {
-        return $this->belongsTo(Airlock::userModel());
+        return $this->morphTo('tokenable');
+    }
+
+    /**
+     * Find the token instance matching the given token.
+     *
+     * @param  string  $token
+     * @return static|null
+     */
+    public static function findToken($token)
+    {
+        if (strpos($token, '|') === false) {
+            return static::where('token', hash('sha256', $token))->first();
+        }
+
+        [$id, $token] = explode('|', $token, 2);
+
+        if ($instance = static::find($id)) {
+            return hash_equals($instance->token, hash('sha256', $token)) ? $instance : null;
+        }
     }
 
     /**

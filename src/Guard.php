@@ -1,10 +1,9 @@
 <?php
 
-namespace Laravel\Airlock;
+namespace Laravel\Sanctum;
 
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\Request;
-use Laravel\Airlock\HasApiTokens;
 
 class Guard
 {
@@ -23,16 +22,25 @@ class Guard
     protected $expiration;
 
     /**
+     * The provider name.
+     *
+     * @var string
+     */
+    protected $provider;
+
+    /**
      * Create a new guard instance.
      *
      * @param  \Illuminate\Contracts\Auth\Factory  $auth
      * @param  int  $expiration
+     * @param  string  $provider
      * @return void
      */
-    public function __construct(AuthFactory $auth, $expiration = null)
+    public function __construct(AuthFactory $auth, $expiration = null, $provider = null)
     {
         $this->auth = $auth;
         $this->expiration = $expiration;
+        $this->provider = $provider;
     }
 
     /**
@@ -43,38 +51,57 @@ class Guard
      */
     public function __invoke(Request $request)
     {
-        if ($user = $this->auth->guard('web')->user()) {
-            return $this->supportsTokens()
+        if ($user = $this->auth->guard(config('sanctum.guard', 'web'))->user()) {
+            return $this->supportsTokens($user)
                         ? $user->withAccessToken(new TransientToken)
                         : $user;
         }
 
-        if ($this->supportsTokens() && $token = $request->bearerToken()) {
-            $model = Airlock::$personalAccessTokenModel;
+        if ($token = $request->bearerToken()) {
+            $model = Sanctum::$personalAccessTokenModel;
 
-            $accessToken = $model::where('token', hash('sha256', $token))->first();
+            $accessToken = $model::findToken($token);
 
             if (! $accessToken ||
                 ($this->expiration &&
-                 $accessToken->created_at->lte(now()->subMinutes($this->expiration)))) {
+                 $accessToken->created_at->lte(now()->subMinutes($this->expiration))) ||
+                ! $this->hasValidProvider($accessToken->tokenable)) {
                 return;
             }
 
-            return $accessToken->user->withAccessToken(
+            return $this->supportsTokens($accessToken->tokenable) ? $accessToken->tokenable->withAccessToken(
                 tap($accessToken->forceFill(['last_used_at' => now()]))->save()
-            );
+            ) : null;
         }
     }
 
     /**
-     * Determine if the user model supports API tokens.
+     * Determine if the tokenable model supports API tokens.
      *
+     * @param  mixed  $tokenable
      * @return bool
      */
-    protected function supportsTokens()
+    protected function supportsTokens($tokenable = null)
     {
-        return in_array(HasApiTokens::class, class_uses_recursive(
-            $this->auth->guard('web')->getProvider()->getModel()
+        return $tokenable && in_array(HasApiTokens::class, class_uses_recursive(
+            get_class($tokenable)
         ));
+    }
+
+    /**
+     * Determine if the tokenable model matches the provider's model type.
+     *
+     * @param  \Illuminate\Database\Eloquent\Model  $tokenable
+     * @return bool
+     */
+    protected function hasValidProvider($tokenable)
+    {
+        if (is_null($this->provider)) {
+            return true;
+        }
+
+        $model = config("auth.providers.{$this->provider}.model");
+
+        return $tokenable instanceof $model;
     }
 }

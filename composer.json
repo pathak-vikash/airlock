@@ -1,11 +1,11 @@
 {
-    "name": "laravel/airlock",
-    "description": "Laravel Airlock provides a featherweight authentication system for SPAs and simple APIs.",
-    "keywords": ["laravel", "airlock", "auth"],
+    "name": "laravel/sanctum",
+    "description": "Laravel Sanctum provides a featherweight authentication system for SPAs and simple APIs.",
+    "keywords": ["laravel", "sanctum", "auth"],
     "license": "MIT",
     "support": {
-        "issues": "https://github.com/laravel/airlock/issues",
-        "source": "https://github.com/laravel/airlock"
+        "issues": "https://github.com/laravel/sanctum/issues",
+        "source": "https://github.com/laravel/sanctum"
     },
     "authors": [
         {
@@ -16,32 +16,32 @@
     "require": {
         "php": "^7.2",
         "ext-json": "*",
-        "illuminate/contracts": "^6.0|^7.0",
-        "illuminate/database": "^6.0|^7.0",
-        "illuminate/support": "^6.0|^7.0"
+        "illuminate/contracts": "^6.9|^7.0|^8.0",
+        "illuminate/database": "^6.9|^7.0|^8.0",
+        "illuminate/support": "^6.9|^7.0|^8.0"
     },
     "require-dev": {
         "mockery/mockery": "^1.0",
-        "orchestra/testbench": "^4.0",
+        "orchestra/testbench": "^4.0|^5.0|^6.0",
         "phpunit/phpunit": "^8.0"
     },
     "autoload": {
         "psr-4": {
-            "Laravel\\Airlock\\": "src/"
+            "Laravel\\Sanctum\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Laravel\\Airlock\\Tests\\": "tests/"
+            "Laravel\\Sanctum\\Tests\\": "tests/"
         }
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.x-dev"
+            "dev-master": "3.x-dev"
         },
         "laravel": {
             "providers": [
-                "Laravel\\Airlock\\AirlockServiceProvider"
+                "Laravel\\Sanctum\\SanctumServiceProvider"
             ]
         }
     },

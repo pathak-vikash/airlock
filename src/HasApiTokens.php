@@ -1,6 +1,6 @@
 <?php
 
-namespace Laravel\Airlock;
+namespace Laravel\Sanctum;
 
 use Illuminate\Support\Str;
 
@@ -9,16 +9,18 @@ trait HasApiTokens
     /**
      * The access token the user is using for the current request.
      *
-     * @var \Laravel\Airlock\Contracts\HasAbilities
+     * @var \Laravel\Sanctum\Contracts\HasAbilities
      */
     protected $accessToken;
 
     /**
-     * Get the access tokens that belong to the user.
+     * Get the access tokens that belong to model.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
     public function tokens()
     {
-        return $this->hasMany(Airlock::$personalAccessTokenModel);
+        return $this->morphMany(Sanctum::$personalAccessTokenModel, 'tokenable');
     }
 
     /**
@@ -37,23 +39,23 @@ trait HasApiTokens
      *
      * @param  string  $name
      * @param  array  $abilities
-     * @return \Laravel\Airlock\NewAccessToken
+     * @return \Laravel\Sanctum\NewAccessToken
      */
     public function createToken(string $name, array $abilities = ['*'])
     {
         $token = $this->tokens()->create([
             'name' => $name,
-            'token' => hash('sha256', $plainTextToken = Str::random(80)),
+            'token' => hash('sha256', $plainTextToken = Str::random(40)),
             'abilities' => $abilities,
         ]);
 
-        return new NewAccessToken($token, $plainTextToken);
+        return new NewAccessToken($token, $token->id.'|'.$plainTextToken);
     }
 
     /**
      * Get the access token currently associated with the user.
      *
-     * @return \Laravel\Airlock\Contracts\HasAbilities
+     * @return \Laravel\Sanctum\Contracts\HasAbilities
      */
     public function currentAccessToken()
     {
@@ -63,7 +65,7 @@ trait HasApiTokens
     /**
      * Set the current access token for the user.
      *
-     * @param  \Laravel\Airlock\Contracts\HasAbilities  $accessToken
+     * @param  \Laravel\Sanctum\Contracts\HasAbilities  $accessToken
      * @return $this
      */
     public function withAccessToken($accessToken)
